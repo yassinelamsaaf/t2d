@@ -20,6 +20,7 @@ import {
   ScanLine,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { Html5Qrcode } from "html5-qrcode";
 
 const ADMIN_EMAIL = "t2d-admin@gmail.com";
 
@@ -55,9 +56,7 @@ export default function DashboardPage() {
   const [verificationResult, setVerificationResult] =
     useState<VerificationResult | null>(null);
   const [scanError, setScanError] = useState("");
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const router = useRouter();
   const { isDark } = useTheme();
 
@@ -151,72 +150,49 @@ export default function DashboardPage() {
     try {
       setScanError("");
       setVerificationResult(null);
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
       setScanning(true);
-      scanQRCode();
-    } catch (err) {
-      setScanError("Could not access camera. Please allow camera permissions.");
+      
+      // Small delay to ensure DOM is ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const html5QrCode = new Html5Qrcode("qr-reader");
+      html5QrCodeRef.current = html5QrCode;
+      
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+        },
+        async (decodedText) => {
+          await html5QrCode.stop();
+          html5QrCodeRef.current = null;
+          setScanning(false);
+          await verifyTicket(decodedText);
+        },
+        () => {
+          // QR code not found, continue scanning
+        }
+      );
+    } catch (err: any) {
+      setScanning(false);
+      setScanError(err.message || "Could not access camera. Please allow camera permissions.");
     }
   };
 
-  const stopScanning = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
+  const stopScanning = async () => {
+    if (html5QrCodeRef.current) {
+      try {
+        await html5QrCodeRef.current.stop();
+      } catch (err) {
+        // Already stopped
+      }
+      html5QrCodeRef.current = null;
     }
     setScanning(false);
   };
 
-  const scanQRCode = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-
-    const scan = async () => {
-      if (!scanning && !streamRef.current) return;
-
-      if (video.readyState === video.HAVE_ENOUGH_DATA && ctx) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        try {
-          // Use BarcodeDetector if available
-          if ("BarcodeDetector" in window) {
-            const barcodeDetector = new (window as any).BarcodeDetector({
-              formats: ["qr_code"],
-            });
-            const barcodes = await barcodeDetector.detect(canvas);
-            if (barcodes.length > 0) {
-              const qrData = barcodes[0].rawValue;
-              await verifyTicket(qrData);
-              return;
-            }
-          }
-        } catch (err) {
-          // Continue scanning
-        }
-      }
-
-      if (streamRef.current) {
-        requestAnimationFrame(scan);
-      }
-    };
-
-    requestAnimationFrame(scan);
-  };
-
   const verifyTicket = async (qrData: string) => {
-    stopScanning();
     try {
       const res = await fetch("/api/verify", {
         method: "POST",
@@ -296,21 +272,14 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* Scanner View */}
+              {/* QR Reader Container */}
               {scanning && !verificationResult && (
                 <div className="mb-6">
-                  <div className="relative rounded-xl overflow-hidden bg-black">
-                    <video
-                      ref={videoRef}
-                      className="w-full aspect-square object-cover"
-                      playsInline
-                      muted
-                    />
-                    <div className="absolute inset-0 border-4 border-purple-500/50 rounded-xl pointer-events-none">
-                      <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-purple-500 animate-pulse" />
-                    </div>
-                  </div>
-                  <canvas ref={canvasRef} className="hidden" />
+                  <div 
+                    id="qr-reader" 
+                    className="rounded-xl overflow-hidden bg-black min-h-[300px]"
+                    style={{ width: '100%' }}
+                  />
                   <button
                     onClick={stopScanning}
                     className="w-full mt-4 py-3 bg-red-500/20 text-red-400 font-semibold rounded-xl border border-red-500/30 hover:bg-red-500/30 transition-all flex items-center justify-center gap-2"
