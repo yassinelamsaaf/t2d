@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     // Verify ticket exists in database
     const { data: ticket, error: ticketError } = await supabase
       .from('tickets')
-      .select('*, profiles:user_id(username, email)')
+      .select('*')
       .eq('ticket_number', ticketNumber)
       .eq('user_id', userId)
       .single()

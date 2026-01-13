@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User, LogOut, ChevronDown, Ticket, Sun, Moon } from "lucide-react";
+import { User, LogOut, ChevronDown, Ticket, Sun, Moon, ScanLine } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -159,13 +159,23 @@ export default function Header() {
                       }`}
                       onClick={() => setDropdownOpen(false)}
                     >
-                      <Ticket
-                        size={16}
-                        className={
-                          isDark ? "text-purple-400" : "text-purple-600"
-                        }
-                      />
-                      My Ticket
+                        {user.email === "t2d-admin@gmail.com" ? (
+                          <>
+                            <ScanLine
+                              size={16}
+                              className={isDark ? "text-purple-400" : "text-purple-600"}
+                            />
+                            Scanner
+                          </>
+                        ) : (
+                          <>
+                            <Ticket
+                              size={16}
+                              className={isDark ? "text-purple-400" : "text-purple-600"}
+                            />
+                            My Ticket
+                          </>
+                        )}
                     </Link>
                     <button
                       onClick={handleLogout}
