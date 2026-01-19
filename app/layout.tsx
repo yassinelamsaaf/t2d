@@ -14,11 +14,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Think To Deploy 2026 - T2D Challenge",
+  title: "Think To Deploy",
   description:
     "Challenge technologique orienté vers le déploiement réel de solutions Data & IA dans l'industrie",
   icons: {
-    icon: "/t2d-logo.png",
+    icon: [
+      { url: "/t2d-logo.png", type: "image/png" },
+    ],
+    shortcut: "/t2d-logo.png",
+    apple: "/t2d-logo.png",
   },
 };
 
